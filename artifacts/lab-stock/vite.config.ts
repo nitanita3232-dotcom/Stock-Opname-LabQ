@@ -2,48 +2,24 @@ import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
-import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
-// PORT is only needed by the dev server, never during a production build.
-// Fall back to 5173 so `vite build` (e.g. on Vercel CI) doesn't throw.
+// PORT is only used by the dev server — never during a production build.
+// Falls back to 5173 when the variable is absent (Vercel CI, local builds, etc.).
 const port = Number(process.env.PORT ?? 5173);
 
-// BASE_PATH is a Replit-specific path prefix. Default to '/' everywhere else
-// (Vercel, local builds, etc.).
+// BASE_PATH is a Replit path-routing prefix. Defaults to '/' on Vercel.
 const basePath = process.env.BASE_PATH ?? '/';
 
-const isReplit = process.env.REPL_ID !== undefined;
-
-export default defineConfig(async () => ({
+export default defineConfig({
   base: basePath,
   plugins: [
     react(),
     tailwindcss(),
-    // Only load the Replit dev-overlay in the Replit environment.
-    ...(isReplit ? [runtimeErrorOverlay()] : []),
-    // Cartographer and dev-banner are Replit-only dev-mode tools.
-    ...(isReplit && process.env.NODE_ENV !== 'production'
-      ? [
-          await import('@replit/vite-plugin-cartographer').then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, '..'),
-            }),
-          ),
-          await import('@replit/vite-plugin-dev-banner').then((m) =>
-            m.devBanner(),
-          ),
-        ]
-      : []),
   ],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),
-      '@assets': path.resolve(
-        import.meta.dirname,
-        '..',
-        '..',
-        'attached_assets',
-      ),
+      '@assets': path.resolve(import.meta.dirname, '..', '..', 'attached_assets'),
     },
     dedupe: ['react', 'react-dom'],
   },
@@ -51,6 +27,23 @@ export default defineConfig(async () => ({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
+    // Split the bundle so each lazy-loaded page is its own chunk
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React runtime
+          'vendor-react': ['react', 'react-dom'],
+          // Routing
+          'vendor-router': ['wouter'],
+          // Data fetching
+          'vendor-query': ['@tanstack/react-query'],
+          // QR scanner (large — keep separate)
+          'vendor-scanner': ['@zxing/browser', '@zxing/library'],
+          // Date utility
+          'vendor-date': ['date-fns'],
+        },
+      },
+    },
   },
   server: {
     port,
@@ -66,4 +59,4 @@ export default defineConfig(async () => ({
     host: '0.0.0.0',
     allowedHosts: true,
   },
-}));
+});
