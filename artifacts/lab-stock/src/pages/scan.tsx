@@ -43,12 +43,14 @@ export default function Scan() {
 
   const { data: item, error: itemError, isLoading: isItemLoading } = useGetItemByBarcode(scannedBarcode, {
     query: {
+      queryKey: ["item-by-barcode", scannedBarcode],
       enabled: !!scannedBarcode,
     }
   });
 
   const { data: itemStock } = useGetItemStock(item?.id as number, {
     query: {
+      queryKey: ["item-stock", item?.id],
       enabled: !!item?.id,
     }
   });
