@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { 
   useGetItemByBarcode, 
   useGetItemStock,
@@ -18,9 +18,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, ScanLine, CheckCircle2, Package } from "lucide-react";
+import { AlertCircle, ScanLine, CheckCircle2, Package, Camera, CameraOff } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { NotFoundException } from "@zxing/library";
 
 export default function Scan() {
   const [barcodeInput, setBarcodeInput] = useState("");
@@ -29,8 +31,12 @@ export default function Scan() {
   const [type, setType] = useState<"IN" | "OUT">("OUT");
   const [qty, setQty] = useState<string>("1");
   const [notes, setNotes] = useState("");
-  
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
   const barcodeRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -54,6 +60,64 @@ export default function Scan() {
   useEffect(() => {
     barcodeRef.current?.focus();
   }, []);
+
+  // Camera scanner
+  const stopCamera = useCallback(() => {
+    if (readerRef.current) {
+      readerRef.current.reset();
+      readerRef.current = null;
+    }
+    // Stop all video tracks
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraOpen(false);
+    setCameraError(null);
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null);
+    setCameraOpen(true);
+    // Wait for video element to mount
+    await new Promise(r => setTimeout(r, 100));
+    if (!videoRef.current) return;
+    try {
+      const reader = new BrowserMultiFormatReader();
+      readerRef.current = reader;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" }
+      });
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+      reader.decodeFromStream(stream, videoRef.current, (result, err) => {
+        if (result) {
+          const code = result.getText();
+          setBarcodeInput(code);
+          setScannedBarcode(code);
+          setQty("1");
+          setNotes("");
+          stopCamera();
+          toast({ title: "Barcode terdeteksi", description: code });
+        }
+        if (err && !(err instanceof NotFoundException)) {
+          console.warn("scan err", err);
+        }
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setCameraError(msg.includes("Permission") || msg.includes("NotAllowed")
+        ? "Izin kamera ditolak. Izinkan akses kamera di browser."
+        : "Tidak bisa membuka kamera: " + msg);
+      setCameraOpen(false);
+    }
+  }, [stopCamera, toast]);
+
+  // Clean up camera on unmount
+  useEffect(() => {
+    return () => { stopCamera(); };
+  }, [stopCamera]);
 
   const handleBarcodeSubmit = (e: React.FormEvent | React.FocusEvent) => {
     e.preventDefault();
@@ -122,9 +186,9 @@ export default function Scan() {
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-sm font-medium">Input Barcode</CardTitle>
-          <CardDescription>Gunakan scanner atau ketik manual lalu tekan Enter</CardDescription>
+          <CardDescription>Gunakan scanner fisik, kamera, atau ketik manual lalu tekan Enter</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <form onSubmit={handleBarcodeSubmit} className="flex gap-2">
             <div className="relative flex-1">
               <ScanLine className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -140,7 +204,49 @@ export default function Scan() {
               />
             </div>
             <Button type="submit" variant="secondary" data-testid="button-scan-submit">Cari</Button>
+            <Button
+              type="button"
+              variant={cameraOpen ? "destructive" : "outline"}
+              onClick={cameraOpen ? stopCamera : startCamera}
+              className="gap-1.5"
+            >
+              {cameraOpen ? <CameraOff className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+              {cameraOpen ? "Tutup" : "Kamera"}
+            </Button>
           </form>
+
+          {cameraError && (
+            <Alert variant="destructive" className="py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{cameraError}</AlertDescription>
+            </Alert>
+          )}
+
+          {cameraOpen && (
+            <div className="relative rounded-lg overflow-hidden bg-black aspect-video w-full">
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                playsInline
+                muted
+              />
+              {/* Scanning overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-56 h-32 border-2 border-primary rounded-lg relative">
+                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    Arahkan kamera ke barcode
+                  </span>
+                  {/* Corner marks */}
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl" />
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary rounded-tr" />
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary rounded-bl" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary rounded-br" />
+                  {/* Scan line animation */}
+                  <div className="absolute left-1 right-1 h-0.5 bg-primary/70 animate-scan-line" />
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
