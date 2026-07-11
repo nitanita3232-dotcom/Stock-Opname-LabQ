@@ -3,13 +3,24 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Laboratory Stock Opname API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: analysts
+    description: Lab analyst management
+  - name: items
+    description: Stock item management
+  - name: transactions
+    description: Stock in/out transactions
+  - name: stock
+    description: Stock summary and reports
+  - name: dashboard
+    description: Dashboard summary statistics
+
 paths:
   /healthz:
     get:
@@ -24,6 +35,411 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─────────────────── ANALYSTS ───────────────────
+  /analysts:
+    get:
+      operationId: listAnalysts
+      tags: [analysts]
+      summary: List all analysts
+      responses:
+        "200":
+          description: List of analysts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Analyst"
+    post:
+      operationId: createAnalyst
+      tags: [analysts]
+      summary: Create a new analyst
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalystInput"
+      responses:
+        "201":
+          description: Created analyst
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analyst"
+
+  /analysts/{id}:
+    get:
+      operationId: getAnalyst
+      tags: [analysts]
+      summary: Get analyst by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analyst
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analyst"
+        "404":
+          description: Not found
+    put:
+      operationId: updateAnalyst
+      tags: [analysts]
+      summary: Update analyst
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalystInput"
+      responses:
+        "200":
+          description: Updated analyst
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analyst"
+    delete:
+      operationId: deleteAnalyst
+      tags: [analysts]
+      summary: Delete analyst
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─────────────────── ITEMS ───────────────────
+  /items:
+    get:
+      operationId: listItems
+      tags: [items]
+      summary: List all items
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+    post:
+      operationId: createItem
+      tags: [items]
+      summary: Create a new item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemInput"
+      responses:
+        "201":
+          description: Created item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+
+  /items/{id}:
+    get:
+      operationId: getItem
+      tags: [items]
+      summary: Get item by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "404":
+          description: Not found
+    put:
+      operationId: updateItem
+      tags: [items]
+      summary: Update item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemInput"
+      responses:
+        "200":
+          description: Updated item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+    delete:
+      operationId: deleteItem
+      tags: [items]
+      summary: Delete item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /items/barcode/{barcode}:
+    get:
+      operationId: getItemByBarcode
+      tags: [items]
+      summary: Lookup item by barcode
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Item found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "404":
+          description: Not found
+
+  # ─────────────────── TRANSACTIONS ───────────────────
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List transactions
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [IN, OUT]
+        - name: analystId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: itemId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Create stock in/out transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get transaction by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Not found
+    put:
+      operationId: updateTransaction
+      tags: [transactions]
+      summary: Update transaction (edit qty or notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionUpdate"
+      responses:
+        "200":
+          description: Updated transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+    delete:
+      operationId: deleteTransaction
+      tags: [transactions]
+      summary: Delete transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─────────────────── STOCK SUMMARY ───────────────────
+  /stock:
+    get:
+      operationId: listStock
+      tags: [stock]
+      summary: Get current stock summary per item
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: lowStock
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Stock summary for all items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockSummary"
+
+  /stock/{itemId}:
+    get:
+      operationId: getItemStock
+      tags: [stock]
+      summary: Get stock detail for one item
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stock detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockSummary"
+        "404":
+          description: Not found
+
+  # ─────────────────── DASHBOARD ───────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard KPI summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +450,162 @@ components:
       required:
         - status
 
+    Analyst:
+      type: object
+      required: [id, name, role, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AnalystInput:
+      type: object
+      required: [name, role]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          minLength: 1
+
+    Item:
+      type: object
+      required: [id, name, barcode, unit, category, minStock, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        barcode:
+          type: string
+        unit:
+          type: string
+        category:
+          type: string
+        description:
+          type: ["string", "null"]
+        minStock:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ItemInput:
+      type: object
+      required: [name, barcode, unit, category, minStock]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        barcode:
+          type: string
+          minLength: 1
+        unit:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        minStock:
+          type: integer
+          minimum: 0
+
+    Transaction:
+      type: object
+      required: [id, itemId, analystId, type, qty, createdAt, item, analyst]
+      properties:
+        id:
+          type: integer
+        itemId:
+          type: integer
+        analystId:
+          type: integer
+        type:
+          type: string
+          enum: [IN, OUT]
+        qty:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        item:
+          $ref: "#/components/schemas/Item"
+        analyst:
+          $ref: "#/components/schemas/Analyst"
+
+    TransactionInput:
+      type: object
+      required: [itemId, analystId, type, qty]
+      properties:
+        itemId:
+          type: integer
+        analystId:
+          type: integer
+        type:
+          type: string
+          enum: [IN, OUT]
+        qty:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+
+    TransactionUpdate:
+      type: object
+      properties:
+        qty:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+        analystId:
+          type: integer
+
+    StockSummary:
+      type: object
+      required: [item, totalIn, totalOut, currentStock, lastTransactionAt]
+      properties:
+        item:
+          $ref: "#/components/schemas/Item"
+        totalIn:
+          type: integer
+        totalOut:
+          type: integer
+        currentStock:
+          type: integer
+        isLowStock:
+          type: boolean
+        lastTransactionAt:
+          type: ["string", "null"]
+
+    DashboardSummary:
+      type: object
+      required: [totalItems, totalAnalysts, totalTransactionsToday, totalInToday, totalOutToday, lowStockCount, recentTransactions]
+      properties:
+        totalItems:
+          type: integer
+        totalAnalysts:
+          type: integer
+        totalTransactionsToday:
+          type: integer
+        totalInToday:
+          type: integer
+        totalOutToday:
+          type: integer
+        lowStockCount:
+          type: integer
+        recentTransactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"

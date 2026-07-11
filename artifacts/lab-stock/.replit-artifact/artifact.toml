@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Lab Stock Opname"
+version = "1.0.0"
+id = "artifacts/lab-stock"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21828
+
+[services.development]
+run = "pnpm --filter @workspace/lab-stock run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lab-stock", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lab-stock/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21828"
+BASE_PATH = "/"
