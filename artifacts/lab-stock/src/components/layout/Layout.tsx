@@ -13,7 +13,7 @@ export function Sidebar() {
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Scan Barcode", href: "/scan", icon: ScanLine },
+    { name: "Scan QR Code", href: "/scan", icon: ScanLine },
     { name: "Aktivitas", href: "/aktivitas", icon: ArrowLeftRight },
     { name: "Stok", href: "/stok", icon: Database },
     { name: "Data Barang", href: "/barang", icon: Package },

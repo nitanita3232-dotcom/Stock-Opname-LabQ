@@ -37,6 +37,7 @@ export default function Scan() {
   const barcodeRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const controlsRef = useRef<{ stop: () => void } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -63,10 +64,12 @@ export default function Scan() {
 
   // Camera scanner
   const stopCamera = useCallback(() => {
-    if (readerRef.current) {
-      readerRef.current.reset();
-      readerRef.current = null;
+    // Stop ZXing decode loop
+    if (controlsRef.current) {
+      controlsRef.current.stop();
+      controlsRef.current = null;
     }
+    readerRef.current = null;
     // Stop all video tracks
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
@@ -81,7 +84,7 @@ export default function Scan() {
     setCameraError(null);
     setCameraOpen(true);
     // Wait for video element to mount
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 150));
     if (!videoRef.current) return;
     try {
       const reader = new BrowserMultiFormatReader();
@@ -90,8 +93,8 @@ export default function Scan() {
         video: { facingMode: "environment" }
       });
       videoRef.current.srcObject = stream;
-      videoRef.current.play();
-      reader.decodeFromStream(stream, videoRef.current, (result, err) => {
+      // decodeFromStream handles play() internally; store controls to stop later
+      const controls = await reader.decodeFromStream(stream, videoRef.current, (result, err) => {
         if (result) {
           const code = result.getText();
           setBarcodeInput(code);
@@ -99,12 +102,13 @@ export default function Scan() {
           setQty("1");
           setNotes("");
           stopCamera();
-          toast({ title: "Barcode terdeteksi", description: code });
+          toast({ title: "QR Code terdeteksi", description: code });
         }
         if (err && !(err instanceof NotFoundException)) {
-          console.warn("scan err", err);
+          // NotFoundException fires every frame when no code found — safe to ignore
         }
       });
+      controlsRef.current = controls;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setCameraError(msg.includes("Permission") || msg.includes("NotAllowed")
@@ -179,13 +183,13 @@ export default function Scan() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Scan Barcode</h1>
-        <p className="text-sm text-muted-foreground">Pindai barcode barang untuk mencatat stok masuk/keluar.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Scan QR Code</h1>
+        <p className="text-sm text-muted-foreground">Pindai QR code barang untuk mencatat stok masuk/keluar.</p>
       </div>
 
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-sm font-medium">Input Barcode</CardTitle>
+          <CardTitle className="text-sm font-medium">Input QR Code</CardTitle>
           <CardDescription>Gunakan scanner fisik, kamera, atau ketik manual lalu tekan Enter</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -197,7 +201,7 @@ export default function Scan() {
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
                 onBlur={handleBarcodeSubmit}
-                placeholder="Scan barcode..."
+                placeholder="Scan QR code..."
                 className="pl-9 font-mono bg-slate-50"
                 autoFocus
                 data-testid="input-barcode"
@@ -234,7 +238,7 @@ export default function Scan() {
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-56 h-32 border-2 border-primary rounded-lg relative">
                   <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    Arahkan kamera ke barcode
+                    Arahkan kamera ke QR code
                   </span>
                   {/* Corner marks */}
                   <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl" />
@@ -261,7 +265,7 @@ export default function Scan() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Barang tidak ditemukan</AlertTitle>
           <AlertDescription>
-            Tidak ada barang dengan barcode <strong>{scannedBarcode}</strong> dalam database.
+            Tidak ada barang dengan kode QR <strong>{scannedBarcode}</strong> dalam database.
           </AlertDescription>
         </Alert>
       )}
