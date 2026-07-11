@@ -7,6 +7,6 @@
  * Make sure DATABASE_URL (and SESSION_SECRET if you add auth) are set
  * in your Vercel project environment variables.
  */
-import app from '../artifacts/api-server/src/app';
+import app from '../artifacts/api-server/dist/index.mjs';
 
 export default app;

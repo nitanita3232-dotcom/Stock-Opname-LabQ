@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm --filter @workspace/lab-stock build",
+  "buildCommand": "pnpm --filter @workspace/api-server build && pnpm --filter @workspace/lab-stock build",
   "outputDirectory": "artifacts/lab-stock/dist/public",
   "framework": null,
   "rewrites": [
