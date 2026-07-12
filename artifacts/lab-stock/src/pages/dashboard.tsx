@@ -1,23 +1,47 @@
-import { 
-  useGetDashboardSummary 
-} from "@workspace/api-client-react";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
+import { useGetDashboardSummary } from "@workspace/api-client-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Package, ArrowDownToLine, ArrowUpToLine, Users, AlertTriangle, Activity } from "lucide-react";
+import { Package, ArrowDownToLine, ArrowUpToLine, Users, AlertTriangle, Activity, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
+import { Link } from "wouter";
+
+// Kartu KPI yang bisa diklik — menuju halaman terkait
+function KpiCard({
+  title,
+  value,
+  icon: Icon,
+  iconClass = "text-muted-foreground",
+  valueClass = "",
+  href,
+}: {
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  iconClass?: string;
+  valueClass?: string;
+  href: string;
+}) {
+  return (
+    <Link href={href}>
+      <Card className="group cursor-pointer transition-all duration-150 hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-xs font-medium text-muted-foreground">{title}</CardTitle>
+          <div className="flex items-center gap-1">
+            <Icon className={`h-4 w-4 ${iconClass}`} />
+            <ExternalLink className="h-3 w-3 text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-opacity" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-2xl font-bold ${valueClass}`}>{value}</div>
+          <p className="text-xs text-muted-foreground/0 group-hover:text-muted-foreground transition-colors mt-0.5">
+            Lihat detail →
+          </p>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
 
 export default function Dashboard() {
   const { data: summary, isLoading } = useGetDashboardSummary();
@@ -36,70 +60,58 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Total Barang</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalItems}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Aktivitas Hari Ini</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalTransactionsToday}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Masuk Hari Ini</CardTitle>
-            <ArrowDownToLine className="h-4 w-4 text-emerald-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalInToday}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Keluar Hari Ini</CardTitle>
-            <ArrowUpToLine className="h-4 w-4 text-rose-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalOutToday}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Stok Menipis</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{summary.lowStockCount}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Analis Aktif</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalAnalysts}</div>
-          </CardContent>
-        </Card>
+        <KpiCard
+          title="Total Barang"
+          value={summary.totalItems}
+          icon={Package}
+          href="/barang"
+        />
+        <KpiCard
+          title="Aktivitas Hari Ini"
+          value={summary.totalTransactionsToday}
+          icon={Activity}
+          href="/aktivitas"
+        />
+        <KpiCard
+          title="Masuk Hari Ini"
+          value={summary.totalInToday}
+          icon={ArrowDownToLine}
+          iconClass="text-emerald-600"
+          href="/aktivitas"
+        />
+        <KpiCard
+          title="Keluar Hari Ini"
+          value={summary.totalOutToday}
+          icon={ArrowUpToLine}
+          iconClass="text-rose-600"
+          href="/aktivitas"
+        />
+        <KpiCard
+          title="Stok Menipis"
+          value={summary.lowStockCount}
+          icon={AlertTriangle}
+          iconClass="text-amber-500"
+          valueClass="text-amber-600"
+          href="/stok"
+        />
+        <KpiCard
+          title="Analis Aktif"
+          value={summary.totalAnalysts}
+          icon={Users}
+          href="/analis"
+        />
       </div>
 
+      {/* Tabel aktivitas terakhir */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Aktivitas Terakhir</CardTitle>
+          <Link
+            href="/aktivitas"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            Lihat semua <ExternalLink className="h-3 w-3" />
+          </Link>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
