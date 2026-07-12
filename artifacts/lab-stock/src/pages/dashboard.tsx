@@ -66,12 +66,49 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard title="Total Barang"       value={summary.totalItems}             icon={Package}         href="/barang"    />
-        <KpiCard title="Aktivitas Hari Ini" value={summary.totalTransactionsToday} icon={Activity}        href="/aktivitas" />
-        <KpiCard title="Masuk Hari Ini"     value={summary.totalInToday}           icon={ArrowDownToLine} iconClass="text-emerald-600" href="/aktivitas" />
-        <KpiCard title="Keluar Hari Ini"    value={summary.totalOutToday}          icon={ArrowUpToLine}   iconClass="text-rose-600"    href="/aktivitas" />
-        <KpiCard title="Stok Menipis"       value={summary.lowStockCount}          icon={AlertTriangle}   iconClass="text-amber-500" valueClass="text-amber-600" href="/stok" />
-        <KpiCard title="Analis Aktif"       value={summary.totalAnalysts}          icon={Users}           href="/analis"    />
+        <KpiCard
+          title="Total Barang"
+          value={summary.totalItems}
+          icon={Package}
+          href="/barang"
+        />
+        <KpiCard
+          title="Aktivitas Hari Ini"
+          value={summary.totalTransactionsToday}
+          icon={Activity}
+          href="/aktivitas"
+        />
+        {/* → Log Aktivitas filter Masuk saja */}
+        <KpiCard
+          title="Masuk Hari Ini"
+          value={summary.totalInToday}
+          icon={ArrowDownToLine}
+          iconClass="text-emerald-600"
+          href="/aktivitas?type=IN"
+        />
+        {/* → Log Aktivitas filter Keluar saja */}
+        <KpiCard
+          title="Keluar Hari Ini"
+          value={summary.totalOutToday}
+          icon={ArrowUpToLine}
+          iconClass="text-rose-600"
+          href="/aktivitas?type=OUT"
+        />
+        {/* → Ringkasan Stok dengan checkbox stok menipis aktif */}
+        <KpiCard
+          title="Stok Menipis"
+          value={summary.lowStockCount}
+          icon={AlertTriangle}
+          iconClass="text-amber-500"
+          valueClass="text-amber-600"
+          href="/stok?lowStock=true"
+        />
+        <KpiCard
+          title="Analis Aktif"
+          value={summary.totalAnalysts}
+          icon={Users}
+          href="/analis"
+        />
       </div>
 
       {/* Tabel aktivitas terakhir */}
