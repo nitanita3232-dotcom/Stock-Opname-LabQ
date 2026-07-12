@@ -5,6 +5,7 @@
  * Laboratory Stock Opname API
  * OpenAPI spec version: 0.1.0
  */
+import type { TransactionInputShift } from './transactionInputShift';
 import type { TransactionInputType } from './transactionInputType';
 
 export interface TransactionInput {
@@ -13,5 +14,6 @@ export interface TransactionInput {
   type: TransactionInputType;
   /** @minimum 1 */
   qty: number;
+  shift?: TransactionInputShift;
   notes?: string;
 }

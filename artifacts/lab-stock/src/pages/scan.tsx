@@ -24,12 +24,16 @@ import { Badge } from "@/components/ui/badge";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { NotFoundException } from "@zxing/library";
 
+const SHIFTS = ["Shift 1", "Shift 2", "Shift 3"] as const;
+type Shift = typeof SHIFTS[number];
+
 export default function Scan() {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [scannedBarcode, setScannedBarcode] = useState("");
   const [analystId, setAnalystId] = useState<string>("");
   const [type, setType] = useState<"IN" | "OUT">("OUT");
   const [qty, setQty] = useState<string>("1");
+  const [shift, setShift] = useState<Shift | "">("");
   const [notes, setNotes] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -56,23 +60,20 @@ export default function Scan() {
   });
 
   const { data: analysts } = useListAnalysts();
-
   const createTransaction = useCreateTransaction();
 
-  // Focus barcode input on mount
   useEffect(() => {
     barcodeRef.current?.focus();
   }, []);
 
-  // Camera scanner
+  // ── Kamera ────────────────────────────────────────────────────────────────
+
   const stopCamera = useCallback(() => {
-    // Stop ZXing decode loop
     if (controlsRef.current) {
       controlsRef.current.stop();
       controlsRef.current = null;
     }
     readerRef.current = null;
-    // Stop all video tracks
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(t => t.stop());
@@ -85,7 +86,6 @@ export default function Scan() {
   const startCamera = useCallback(async () => {
     setCameraError(null);
     setCameraOpen(true);
-    // Wait for video element to mount
     await new Promise(r => setTimeout(r, 150));
     if (!videoRef.current) return;
     try {
@@ -95,7 +95,6 @@ export default function Scan() {
         video: { facingMode: "environment" }
       });
       videoRef.current.srcObject = stream;
-      // decodeFromStream handles play() internally; store controls to stop later
       const controls = await reader.decodeFromStream(stream, videoRef.current, (result, err) => {
         if (result) {
           const code = result.getText();
@@ -106,9 +105,7 @@ export default function Scan() {
           stopCamera();
           toast({ title: "QR Code terdeteksi", description: code });
         }
-        if (err && !(err instanceof NotFoundException)) {
-          // NotFoundException fires every frame when no code found — safe to ignore
-        }
+        if (err && !(err instanceof NotFoundException)) { /* ignore */ }
       });
       controlsRef.current = controls;
     } catch (e: unknown) {
@@ -120,10 +117,11 @@ export default function Scan() {
     }
   }, [stopCamera, toast]);
 
-  // Clean up camera on unmount
   useEffect(() => {
     return () => { stopCamera(); };
   }, [stopCamera]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleBarcodeSubmit = (e: React.FormEvent | React.FocusEvent) => {
     e.preventDefault();
@@ -141,6 +139,10 @@ export default function Scan() {
       toast({ title: "Pilih analis", variant: "destructive" });
       return;
     }
+    if (!shift) {
+      toast({ title: "Pilih shift", variant: "destructive" });
+      return;
+    }
     const numQty = parseInt(qty, 10);
     if (isNaN(numQty) || numQty <= 0) {
       toast({ title: "Kuantitas tidak valid", variant: "destructive" });
@@ -153,27 +155,26 @@ export default function Scan() {
         analystId: parseInt(analystId, 10),
         type,
         qty: numQty,
-        notes
+        shift,
+        notes: notes || undefined,
       }
     }, {
       onSuccess: () => {
         toast({
           title: "Aktivitas Berhasil",
-          description: `${type === "IN" ? "Masuk" : "Keluar"} ${numQty} ${item.unit} ${item.name}`,
+          description: `${type === "IN" ? "Masuk" : "Keluar"} ${numQty} ${item.unit} ${item.name} — ${shift}`,
         });
-        
-        // Invalidate caches
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListStockQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetItemStockQueryKey(item.id) });
-        
         // Reset form
         setBarcodeInput("");
         setScannedBarcode("");
         setQty("1");
         setNotes("");
         setType("OUT");
+        setShift("");
         barcodeRef.current?.focus();
       },
       onError: () => {
@@ -182,6 +183,8 @@ export default function Scan() {
     });
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -189,6 +192,7 @@ export default function Scan() {
         <p className="text-sm text-muted-foreground">Pindai QR code barang untuk mencatat stok masuk/keluar.</p>
       </div>
 
+      {/* ── Input QR Code ── */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-sm font-medium">Input QR Code</CardTitle>
@@ -206,10 +210,9 @@ export default function Scan() {
                 placeholder="Scan QR code..."
                 className="pl-9 font-mono bg-slate-50"
                 autoFocus
-                data-testid="input-barcode"
               />
             </div>
-            <Button type="submit" variant="secondary" data-testid="button-scan-submit">Cari</Button>
+            <Button type="submit" variant="secondary">Cari</Button>
             <Button
               type="button"
               variant={cameraOpen ? "destructive" : "outline"}
@@ -230,24 +233,16 @@ export default function Scan() {
 
           {cameraOpen && (
             <div className="relative rounded-lg overflow-hidden bg-black aspect-video w-full">
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-              />
-              {/* Scanning overlay */}
+              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-56 h-32 border-2 border-primary rounded-lg relative">
                   <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-white bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap">
                     Arahkan kamera ke QR code
                   </span>
-                  {/* Corner marks */}
                   <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl" />
                   <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary rounded-tr" />
                   <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary rounded-bl" />
                   <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary rounded-br" />
-                  {/* Scan line animation */}
                   <div className="absolute left-1 right-1 h-0.5 bg-primary/70 animate-scan-line" />
                 </div>
               </div>
@@ -256,10 +251,9 @@ export default function Scan() {
         </CardContent>
       </Card>
 
+      {/* ── Status ── */}
       {isItemLoading && (
-        <div className="text-center py-8 text-sm text-muted-foreground animate-pulse">
-          Mencari barang...
-        </div>
+        <div className="text-center py-8 text-sm text-muted-foreground animate-pulse">Mencari barang...</div>
       )}
 
       {itemError && scannedBarcode && (
@@ -272,6 +266,7 @@ export default function Scan() {
         </Alert>
       )}
 
+      {/* ── Form transaksi ── */}
       {item && (
         <Card className="border-primary/20 shadow-sm">
           <CardHeader className="bg-primary/5 pb-4 border-b">
@@ -281,7 +276,9 @@ export default function Scan() {
                   <CheckCircle2 className="h-5 w-5" />
                   {item.name}
                 </CardTitle>
-                <div className="text-sm text-muted-foreground mt-1 font-mono">{item.barcode} • {item.category}</div>
+                <div className="text-sm text-muted-foreground mt-1 font-mono">
+                  {item.barcode} • {item.category}
+                </div>
               </div>
               {itemStock && (
                 <div className="text-right">
@@ -298,6 +295,8 @@ export default function Scan() {
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handleTransactionSubmit} className="space-y-5">
+
+              {/* Tipe + Qty */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Tipe Aktivitas</Label>
@@ -307,11 +306,11 @@ export default function Scan() {
                     className="flex gap-4"
                   >
                     <div className="flex items-center space-x-2 border rounded-md px-3 py-2 flex-1 cursor-pointer hover:bg-slate-50">
-                      <RadioGroupItem value="IN" id="type-in" data-testid="radio-in" />
+                      <RadioGroupItem value="IN" id="type-in" />
                       <Label htmlFor="type-in" className="cursor-pointer text-emerald-700 font-medium w-full">Masuk (+)</Label>
                     </div>
                     <div className="flex items-center space-x-2 border rounded-md px-3 py-2 flex-1 cursor-pointer hover:bg-slate-50">
-                      <RadioGroupItem value="OUT" id="type-out" data-testid="radio-out" />
+                      <RadioGroupItem value="OUT" id="type-out" />
                       <Label htmlFor="type-out" className="cursor-pointer text-rose-700 font-medium w-full">Keluar (-)</Label>
                     </div>
                   </RadioGroup>
@@ -326,25 +325,55 @@ export default function Scan() {
                     value={qty} 
                     onChange={(e) => setQty(e.target.value)}
                     required
-                    data-testid="input-qty"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Analis</Label>
-                <Select value={analystId} onValueChange={setAnalystId}>
-                  <SelectTrigger data-testid="select-analyst">
-                    <SelectValue placeholder="Pilih analis yang bertugas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {analysts?.map(a => (
-                      <SelectItem key={a.id} value={a.id.toString()}>{a.name} - {a.role}</SelectItem>
+              {/* Analis + Shift */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Analis <span className="text-rose-500">*</span></Label>
+                  <Select value={analystId} onValueChange={setAnalystId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih analis..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {analysts?.map(a => (
+                        <SelectItem key={a.id} value={a.id.toString()}>
+                          {a.name} <span className="text-muted-foreground">— {a.role}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Shift <span className="text-rose-500">*</span></Label>
+                  <RadioGroup
+                    value={shift}
+                    onValueChange={(val) => setShift(val as Shift)}
+                    className="flex gap-2"
+                  >
+                    {SHIFTS.map((s) => (
+                      <div
+                        key={s}
+                        className={`flex items-center justify-center gap-1.5 border rounded-md px-2 py-2 flex-1 cursor-pointer text-sm font-medium transition-colors ${
+                          shift === s
+                            ? "border-primary bg-primary/5 text-primary"
+                            : "hover:bg-slate-50"
+                        }`}
+                      >
+                        <RadioGroupItem value={s} id={`shift-${s}`} className="sr-only" />
+                        <Label htmlFor={`shift-${s}`} className="cursor-pointer text-xs font-semibold w-full text-center">
+                          {s}
+                        </Label>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </RadioGroup>
+                </div>
               </div>
 
+              {/* Catatan */}
               <div className="space-y-2">
                 <Label htmlFor="notes">Catatan (Opsional)</Label>
                 <Textarea 
@@ -353,7 +382,6 @@ export default function Scan() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Misal: Untuk pengujian sampel batch A"
                   rows={2}
-                  data-testid="input-notes"
                 />
               </div>
 
@@ -362,7 +390,6 @@ export default function Scan() {
                 className="w-full" 
                 size="lg"
                 disabled={createTransaction.isPending}
-                data-testid="button-submit-transaction"
               >
                 {createTransaction.isPending ? "Menyimpan..." : "Simpan Aktivitas"}
               </Button>

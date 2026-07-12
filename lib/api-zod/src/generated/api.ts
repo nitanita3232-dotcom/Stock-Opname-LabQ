@@ -255,6 +255,7 @@ export const ListTransactionsResponseItem = zod.object({
   "analystId": zod.number(),
   "type": zod.enum(['IN', 'OUT']),
   "qty": zod.number(),
+  "shift": zod.union([zod.literal('Shift 1'),zod.literal('Shift 2'),zod.literal('Shift 3'),zod.literal(null)]).nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "item": zod.object({
@@ -288,6 +289,7 @@ export const CreateTransactionBody = zod.object({
   "analystId": zod.number(),
   "type": zod.enum(['IN', 'OUT']),
   "qty": zod.number().min(1),
+  "shift": zod.enum(['Shift 1', 'Shift 2', 'Shift 3']).optional(),
   "notes": zod.string().optional()
 })
 
@@ -297,6 +299,7 @@ export const CreateTransactionResponse = zod.object({
   "analystId": zod.number(),
   "type": zod.enum(['IN', 'OUT']),
   "qty": zod.number(),
+  "shift": zod.union([zod.literal('Shift 1'),zod.literal('Shift 2'),zod.literal('Shift 3'),zod.literal(null)]).nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "item": zod.object({
@@ -331,6 +334,7 @@ export const GetTransactionResponse = zod.object({
   "analystId": zod.number(),
   "type": zod.enum(['IN', 'OUT']),
   "qty": zod.number(),
+  "shift": zod.union([zod.literal('Shift 1'),zod.literal('Shift 2'),zod.literal('Shift 3'),zod.literal(null)]).nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "item": zod.object({
@@ -364,6 +368,7 @@ export const UpdateTransactionParams = zod.object({
 
 export const UpdateTransactionBody = zod.object({
   "qty": zod.number().min(1).optional(),
+  "shift": zod.enum(['Shift 1', 'Shift 2', 'Shift 3']).optional(),
   "notes": zod.string().optional(),
   "analystId": zod.number().optional()
 })
@@ -374,6 +379,7 @@ export const UpdateTransactionResponse = zod.object({
   "analystId": zod.number(),
   "type": zod.enum(['IN', 'OUT']),
   "qty": zod.number(),
+  "shift": zod.union([zod.literal('Shift 1'),zod.literal('Shift 2'),zod.literal('Shift 3'),zod.literal(null)]).nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "item": zod.object({
@@ -476,6 +482,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "analystId": zod.number(),
   "type": zod.enum(['IN', 'OUT']),
   "qty": zod.number(),
+  "shift": zod.union([zod.literal('Shift 1'),zod.literal('Shift 2'),zod.literal('Shift 3'),zod.literal(null)]).nullish(),
   "notes": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "item": zod.object({

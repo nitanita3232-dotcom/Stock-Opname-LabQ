@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { transactionsTable, analystsTable, itemsTable } from "@workspace/db";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import {
   ListTransactionsQueryParams,
   CreateTransactionBody,
@@ -10,6 +10,7 @@ import {
   UpdateTransactionBody,
   DeleteTransactionParams,
 } from "@workspace/api-zod";
+import { notifyLowStock } from "../lib/notify.js";
 
 const router = Router();
 
@@ -24,6 +25,18 @@ function serializeTx(
     item: { ...item, createdAt: item.createdAt.toISOString() },
     analyst: { ...analyst, createdAt: analyst.createdAt.toISOString() },
   };
+}
+
+/** Hitung sisa stok untuk satu item. */
+async function getItemCurrentStock(itemId: number): Promise<number> {
+  const [stats] = await db
+    .select({
+      totalIn:  sql<number>`COALESCE(SUM(CASE WHEN ${transactionsTable.type} = 'IN'  THEN ${transactionsTable.qty} ELSE 0 END), 0)::int`,
+      totalOut: sql<number>`COALESCE(SUM(CASE WHEN ${transactionsTable.type} = 'OUT' THEN ${transactionsTable.qty} ELSE 0 END), 0)::int`,
+    })
+    .from(transactionsTable)
+    .where(eq(transactionsTable.itemId, itemId));
+  return Number(stats?.totalIn ?? 0) - Number(stats?.totalOut ?? 0);
 }
 
 // GET /transactions
@@ -42,11 +55,11 @@ router.get("/transactions", async (req, res) => {
     .leftJoin(analystsTable, eq(transactionsTable.analystId, analystsTable.id))
     .where(
       and(
-        type ? eq(transactionsTable.type, type) : undefined,
-        analystId ? eq(transactionsTable.analystId, analystId) : undefined,
-        itemId ? eq(transactionsTable.itemId, itemId) : undefined,
-        dateFrom ? gte(transactionsTable.createdAt, new Date(dateFrom)) : undefined,
-        dateTo ? lte(transactionsTable.createdAt, new Date(dateTo + "T23:59:59Z")) : undefined,
+        type      ? eq(transactionsTable.type,      type)                                        : undefined,
+        analystId ? eq(transactionsTable.analystId, analystId)                                   : undefined,
+        itemId    ? eq(transactionsTable.itemId,    itemId)                                      : undefined,
+        dateFrom  ? gte(transactionsTable.createdAt, new Date(dateFrom))                         : undefined,
+        dateTo    ? lte(transactionsTable.createdAt, new Date(dateTo + "T23:59:59Z"))            : undefined,
       ),
     )
     .orderBy(desc(transactionsTable.createdAt))
@@ -63,19 +76,36 @@ router.get("/transactions", async (req, res) => {
 router.post("/transactions", async (req, res) => {
   const parsed = CreateTransactionBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid input" });
+    res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
     return;
   }
+
   const [tx] = await db.insert(transactionsTable).values(parsed.data).returning();
 
-  const [item] = await db.select().from(itemsTable).where(eq(itemsTable.id, tx.itemId));
+  const [item]    = await db.select().from(itemsTable).where(eq(itemsTable.id, tx.itemId));
   const [analyst] = await db.select().from(analystsTable).where(eq(analystsTable.id, tx.analystId));
 
   if (!item || !analyst) {
     res.status(404).json({ error: "Item or analyst not found" });
     return;
   }
+
   res.status(201).json(serializeTx(tx, item, analyst));
+
+  // ── Cek stok dan kirim notifikasi (non-blocking) ──────────────────────────
+  getItemCurrentStock(item.id)
+    .then((currentStock) => {
+      if (currentStock <= item.minStock) {
+        notifyLowStock({
+          itemName:     item.name,
+          barcode:      item.barcode,
+          unit:         item.unit,
+          currentStock,
+          minStock:     item.minStock,
+        });
+      }
+    })
+    .catch((e) => console.error("[transactions] stock-check error:", e));
 });
 
 // GET /transactions/:id
@@ -102,16 +132,17 @@ router.get("/transactions/:id", async (req, res) => {
 // PUT /transactions/:id
 router.put("/transactions/:id", async (req, res) => {
   const paramParsed = UpdateTransactionParams.safeParse({ id: Number(req.params.id) });
-  const bodyParsed = UpdateTransactionBody.safeParse(req.body);
+  const bodyParsed  = UpdateTransactionBody.safeParse(req.body);
   if (!paramParsed.success || !bodyParsed.success) {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
 
   const updateData: Record<string, unknown> = {};
-  if (bodyParsed.data.qty !== undefined) updateData.qty = bodyParsed.data.qty;
-  if (bodyParsed.data.notes !== undefined) updateData.notes = bodyParsed.data.notes;
+  if (bodyParsed.data.qty       !== undefined) updateData.qty       = bodyParsed.data.qty;
+  if (bodyParsed.data.notes     !== undefined) updateData.notes     = bodyParsed.data.notes;
   if (bodyParsed.data.analystId !== undefined) updateData.analystId = bodyParsed.data.analystId;
+  if (bodyParsed.data.shift     !== undefined) updateData.shift     = bodyParsed.data.shift;
 
   const [tx] = await db
     .update(transactionsTable)
@@ -124,7 +155,7 @@ router.put("/transactions/:id", async (req, res) => {
     return;
   }
 
-  const [item] = await db.select().from(itemsTable).where(eq(itemsTable.id, tx.itemId));
+  const [item]    = await db.select().from(itemsTable).where(eq(itemsTable.id, tx.itemId));
   const [analyst] = await db.select().from(analystsTable).where(eq(analystsTable.id, tx.analystId));
 
   res.json(serializeTx(tx, item!, analyst!));

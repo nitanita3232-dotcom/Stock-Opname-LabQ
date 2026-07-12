@@ -5,10 +5,12 @@
  * Laboratory Stock Opname API
  * OpenAPI spec version: 0.1.0
  */
+import type { TransactionUpdateShift } from './transactionUpdateShift';
 
 export interface TransactionUpdate {
   /** @minimum 1 */
   qty?: number;
+  shift?: TransactionUpdateShift;
   notes?: string;
   analystId?: number;
 }

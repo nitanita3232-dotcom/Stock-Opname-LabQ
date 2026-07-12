@@ -7,6 +7,7 @@
  */
 import type { Analyst } from './analyst';
 import type { Item } from './item';
+import type { TransactionShift } from './transactionShift';
 import type { TransactionType } from './transactionType';
 
 export interface Transaction {
@@ -15,6 +16,8 @@ export interface Transaction {
   analystId: number;
   type: TransactionType;
   qty: number;
+  /** @nullable */
+  shift?: TransactionShift;
   /** @nullable */
   notes?: string | null;
   createdAt: Date;

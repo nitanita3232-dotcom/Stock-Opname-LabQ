@@ -12,6 +12,7 @@ export const transactionsTable = pgTable("transactions", {
   analystId: integer("analyst_id").notNull().references(() => analystsTable.id),
   type: transactionTypeEnum("type").notNull(),
   qty: integer("qty").notNull(),
+  shift: text("shift"),   // "Shift 1" | "Shift 2" | "Shift 3" | null
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -534,6 +534,9 @@ components:
           enum: [IN, OUT]
         qty:
           type: integer
+        shift:
+          type: ["string", "null"]
+          enum: ["Shift 1", "Shift 2", "Shift 3", null]
         notes:
           type: ["string", "null"]
         createdAt:
@@ -558,6 +561,9 @@ components:
         qty:
           type: integer
           minimum: 1
+        shift:
+          type: string
+          enum: ["Shift 1", "Shift 2", "Shift 3"]
         notes:
           type: string
 
@@ -567,6 +573,9 @@ components:
         qty:
           type: integer
           minimum: 1
+        shift:
+          type: string
+          enum: ["Shift 1", "Shift 2", "Shift 3"]
         notes:
           type: string
         analystId:

@@ -57,12 +57,26 @@ export const TransactionType = {
   OUT: 'OUT',
 } as const;
 
+/**
+ * @nullable
+ */
+export type TransactionShift = typeof TransactionShift[keyof typeof TransactionShift] | null;
+
+
+export const TransactionShift = {
+  Shift_1: 'Shift 1',
+  Shift_2: 'Shift 2',
+  Shift_3: 'Shift 3',
+} as const;
+
 export interface Transaction {
   id: number;
   itemId: number;
   analystId: number;
   type: TransactionType;
   qty: number;
+  /** @nullable */
+  shift?: TransactionShift;
   /** @nullable */
   notes?: string | null;
   createdAt: string;
@@ -78,18 +92,38 @@ export const TransactionInputType = {
   OUT: 'OUT',
 } as const;
 
+export type TransactionInputShift = typeof TransactionInputShift[keyof typeof TransactionInputShift];
+
+
+export const TransactionInputShift = {
+  Shift_1: 'Shift 1',
+  Shift_2: 'Shift 2',
+  Shift_3: 'Shift 3',
+} as const;
+
 export interface TransactionInput {
   itemId: number;
   analystId: number;
   type: TransactionInputType;
   /** @minimum 1 */
   qty: number;
+  shift?: TransactionInputShift;
   notes?: string;
 }
+
+export type TransactionUpdateShift = typeof TransactionUpdateShift[keyof typeof TransactionUpdateShift];
+
+
+export const TransactionUpdateShift = {
+  Shift_1: 'Shift 1',
+  Shift_2: 'Shift 2',
+  Shift_3: 'Shift 3',
+} as const;
 
 export interface TransactionUpdate {
   /** @minimum 1 */
   qty?: number;
+  shift?: TransactionUpdateShift;
   notes?: string;
   analystId?: number;
 }

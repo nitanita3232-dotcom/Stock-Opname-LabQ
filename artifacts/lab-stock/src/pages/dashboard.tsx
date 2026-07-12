@@ -6,7 +6,12 @@ import { Package, ArrowDownToLine, ArrowUpToLine, Users, AlertTriangle, Activity
 import { format } from "date-fns";
 import { Link } from "wouter";
 
-// Kartu KPI yang bisa diklik — menuju halaman terkait
+const SHIFT_COLORS: Record<string, string> = {
+  "Shift 1": "bg-blue-50 text-blue-700 border-blue-200",
+  "Shift 2": "bg-violet-50 text-violet-700 border-violet-200",
+  "Shift 3": "bg-orange-50 text-orange-700 border-orange-200",
+};
+
 function KpiCard({
   title,
   value,
@@ -59,83 +64,48 @@ export default function Dashboard() {
         <p className="text-sm text-muted-foreground">Ringkasan pergerakan stok hari ini.</p>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard
-          title="Total Barang"
-          value={summary.totalItems}
-          icon={Package}
-          href="/barang"
-        />
-        <KpiCard
-          title="Aktivitas Hari Ini"
-          value={summary.totalTransactionsToday}
-          icon={Activity}
-          href="/aktivitas"
-        />
-        <KpiCard
-          title="Masuk Hari Ini"
-          value={summary.totalInToday}
-          icon={ArrowDownToLine}
-          iconClass="text-emerald-600"
-          href="/aktivitas"
-        />
-        <KpiCard
-          title="Keluar Hari Ini"
-          value={summary.totalOutToday}
-          icon={ArrowUpToLine}
-          iconClass="text-rose-600"
-          href="/aktivitas"
-        />
-        <KpiCard
-          title="Stok Menipis"
-          value={summary.lowStockCount}
-          icon={AlertTriangle}
-          iconClass="text-amber-500"
-          valueClass="text-amber-600"
-          href="/stok"
-        />
-        <KpiCard
-          title="Analis Aktif"
-          value={summary.totalAnalysts}
-          icon={Users}
-          href="/analis"
-        />
+        <KpiCard title="Total Barang"       value={summary.totalItems}             icon={Package}         href="/barang"    />
+        <KpiCard title="Aktivitas Hari Ini" value={summary.totalTransactionsToday} icon={Activity}        href="/aktivitas" />
+        <KpiCard title="Masuk Hari Ini"     value={summary.totalInToday}           icon={ArrowDownToLine} iconClass="text-emerald-600" href="/aktivitas" />
+        <KpiCard title="Keluar Hari Ini"    value={summary.totalOutToday}          icon={ArrowUpToLine}   iconClass="text-rose-600"    href="/aktivitas" />
+        <KpiCard title="Stok Menipis"       value={summary.lowStockCount}          icon={AlertTriangle}   iconClass="text-amber-500" valueClass="text-amber-600" href="/stok" />
+        <KpiCard title="Analis Aktif"       value={summary.totalAnalysts}          icon={Users}           href="/analis"    />
       </div>
 
       {/* Tabel aktivitas terakhir */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Aktivitas Terakhir</CardTitle>
-          <Link
-            href="/aktivitas"
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
+          <Link href="/aktivitas" className="text-xs text-primary hover:underline flex items-center gap-1">
             Lihat semua <ExternalLink className="h-3 w-3" />
           </Link>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[180px]">Waktu</TableHead>
+                  <TableHead className="w-[160px]">Waktu</TableHead>
                   <TableHead>Tipe</TableHead>
                   <TableHead>Barang</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Analis</TableHead>
+                  <TableHead>Shift</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {summary.recentTransactions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
                       Belum ada aktivitas
                     </TableCell>
                   </TableRow>
                 ) : (
                   summary.recentTransactions.map((tx) => (
                     <TableRow key={tx.id}>
-                      <TableCell className="text-xs text-muted-foreground font-medium">
+                      <TableCell className="text-xs text-muted-foreground font-medium whitespace-nowrap">
                         {format(new Date(tx.createdAt), "dd MMM yyyy HH:mm")}
                       </TableCell>
                       <TableCell>
@@ -153,6 +123,15 @@ export default function Dashboard() {
                         {tx.type === "IN" ? "+" : "-"}{tx.qty} {tx.item.unit}
                       </TableCell>
                       <TableCell className="text-sm">{tx.analyst.name}</TableCell>
+                      <TableCell>
+                        {tx.shift ? (
+                          <Badge variant="outline" className={SHIFT_COLORS[tx.shift] ?? ""}>
+                            {tx.shift}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
